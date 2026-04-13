@@ -1,0 +1,229 @@
+<section class="custom-grid">
+  <h2 class="grid-title">{{ section.settings.title }}</h2>
+
+  <div class="grid">
+    {% for block in section.blocks %}
+      {% assign product = block.settings.product %}
+
+      <div class="grid-item" data-handle="{{ product.handle }}">
+        <img src="{{ product.featured_image | image_url: width: 600 }}" alt="{{ product.title }}">
+        <div class="plus-icon">+</div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- POPUP -->
+<div id="popup" class="popup">
+  <div class="popup-content">
+    <span id="close-popup">×</span>
+    <div id="popup-body"></div>
+  </div>
+</div>
+
+<style>
+.custom-grid {
+  padding: 80px 60px;
+}
+
+.grid-title {
+  font-size: 32px;
+  margin-bottom: 40px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.grid-item {
+  position: relative;
+  cursor: pointer;
+}
+
+.grid-item img {
+  width: 100%;
+  display: block;
+}
+
+.plus-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 32px;
+  font-weight: bold;
+}
+
+.popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-content {
+  background: white;
+  width: 90%;
+  max-width: 420px;
+  padding: 20px;
+  position: relative;
+}
+
+#close-popup {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  const popup = document.getElementById('popup');
+  const popupBody = document.getElementById('popup-body');
+  const closeBtn = document.getElementById('close-popup');
+
+  document.querySelectorAll('.grid-item').forEach(item => {
+    item.addEventListener('click', function () {
+
+      const handle = this.dataset.handle;
+
+      fetch(`/products/${handle}.js`)
+        .then(res => res.json())
+        .then(product => {
+
+          let variantsHTML = product.variants.map(v => `
+            <option value="${v.id}">
+              ${v.title} - ₹${(v.price / 100).toFixed(2)}
+            </option>
+          `).join('');
+
+          popupBody.innerHTML = `
+            <h2>${product.title}</h2>
+            <p>${product.description}</p>
+
+            <select id="variant-select">
+              ${variantsHTML}
+            </select>
+
+            <button id="add-to-cart-btn" style="
+              width:100%;
+              padding:12px;
+              background:black;
+              color:white;
+              border:none;
+              margin-top:10px;
+              cursor:pointer;
+            ">
+              ADD TO CART
+            </button>
+          `;
+
+          popup.style.display = "flex";
+
+          document.getElementById('add-to-cart-btn').addEventListener('click', function () {
+            const variantId = document.getElementById('variant-select').value;
+            addToCart(product, variantId);
+          });
+
+        });
+
+    });
+  });
+
+  closeBtn.addEventListener('click', function () {
+    popup.style.display = "none";
+  });
+
+});
+
+
+function addToCart(product, variantId) {
+
+  const selectedVariant = product.variants.find(v => v.id == variantId);
+
+  let items = [
+    {
+      id: parseInt(variantId),
+      quantity: 1
+    }
+  ];
+
+  // 🔥 CONDITION: Size M + Color Black
+  if (
+    (selectedVariant.option1 === "M" || selectedVariant.option1 === "Medium") &&
+    selectedVariant.option2 === "Black"
+  ) {
+
+    // ✅ PUT YOUR SOFT WINTER JACKET VARIANT ID HERE
+    const jacketVariantId = YOUR_REAL_VARIANT_ID;
+
+    items.push({
+      id: jacketVariantId,
+      quantity: 1
+    });
+  }
+
+  fetch('/cart/add.js', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ items })
+  })
+  .then(() => {
+    alert("Added to cart!");
+    document.getElementById('popup').style.display = "none";
+  });
+
+}
+</script>
+
+{% schema %}
+{
+  "name": "Custom Product Grid",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title",
+      "default": "Featured Products"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "Product",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "Select Product"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 6,
+  "presets": [
+    {
+      "name": "Custom Product Grid"
+    }
+  ]
+}
+{% endschema %}
